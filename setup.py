@@ -1,6 +1,6 @@
 from setuptools import find_packages, setup
 
-import deepdow
+import deepdowmine
 
 DESCRIPTION = "Portfolio optimization with deep learning"
 LONG_DESCRIPTION = DESCRIPTION
@@ -20,7 +20,7 @@ INSTALL_REQUIRES = [
 
 setup(
     name="deepdowmine",
-    version=deepdow.__version__,
+    version=deepdowmine.__version__,
     author="forked from Jan Krepl project",
     author_email="sei.dmitry.r@gmail.com",
     description=DESCRIPTION,
