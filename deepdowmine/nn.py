@@ -12,6 +12,7 @@ from .layers import (
     RNN,
     SoftmaxAllocator,
     WeightNorm,
+    NumericalMarkowitzWithShorting 
 )
 
 
