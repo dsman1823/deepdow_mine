@@ -1,6 +1,6 @@
 from setuptools import find_packages, setup
 
-import deepdow
+import deepdowmine
 
 DESCRIPTION = "Portfolio optimization with deep learning"
 LONG_DESCRIPTION = DESCRIPTION
