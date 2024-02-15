@@ -9,6 +9,86 @@ import torch.nn as nn
 from .misc import Cov2Corr, CovarianceMatrix, KMeans
 
 
+
+class NumericalMarkowitzWithShorting(nn.Module):
+    """Convex optimization layer stylized into portfolio optimization problem.
+
+    Parameters
+    ----------
+    n_assets : int
+        Number of assets.
+
+    Attributes
+    ----------
+    cvxpylayer : CvxpyLayer
+        Custom layer used by a third party package called cvxpylayers.
+
+    References
+    ----------
+    [1] https://github.com/cvxgrp/cvxpylayers
+
+    """
+
+    def __init__(self, n_assets):
+        """Construct."""
+        super().__init__()
+        covmat_sqrt = cp.Parameter((n_assets, n_assets))
+        rets = cp.Parameter(n_assets)
+        alpha = cp.Parameter(nonneg=True)
+
+        w = cp.Variable(n_assets)
+        ret = rets @ w
+        risk = cp.sum_squares(covmat_sqrt @ w)
+        reg = alpha * (cp.norm(w) ** 2)
+
+        prob = cp.Problem(
+            cp.Maximize(ret - risk - reg),
+            [cp.sum(w) == 1],
+        )
+
+        assert prob.is_dpp()
+
+        self.cvxpylayer = CvxpyLayer(
+            prob, parameters=[rets, covmat_sqrt, alpha], variables=[w]
+        )
+
+    def forward(self, rets, covmat_sqrt, gamma_sqrt, alpha):
+        """Perform forward pass.
+
+        Parameters
+        ----------
+        rets : torch.Tensor
+            Of shape (n_samples, n_assets) representing expected returns (or whatever the feature extractor decided
+            to encode).
+
+        covmat_sqrt : torch.Tensor
+            Of shape (n_samples, n_assets, n_assets) representing the square of the covariance matrix.
+
+        gamma_sqrt : torch.Tensor
+            Of shape (n_samples,) representing the tradeoff between risk and return - where on efficient frontier
+            we are.
+
+        alpha : torch.Tensor
+            Of shape (n_samples,) representing how much L2 regularization is applied to weights. Note that
+            we pass the absolute value of this variable into the optimizer since when creating the problem
+            we asserted it is going to be nonnegative.
+
+        Returns
+        -------
+        weights : torch.Tensor
+            Of shape (n_samples, n_assets) representing the optimal weights as determined by the convex optimizer.
+
+        """
+        n_samples, n_assets = rets.shape
+        gamma_sqrt_ = gamma_sqrt.repeat((1, n_assets * n_assets)).view(
+            n_samples, n_assets, n_assets
+        )
+        alpha_abs = torch.abs(alpha)  # it needs to be nonnegative
+
+        return self.cvxpylayer(rets, gamma_sqrt_ * covmat_sqrt, alpha_abs)[0]
+
+
+
 class AnalyticalMarkowitz(nn.Module):
     """Minimum variance and maximum sharpe ratio with no constraints.
 
