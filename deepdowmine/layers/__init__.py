@@ -17,6 +17,7 @@ from .allocate import (
     SoftmaxAllocator,
     SparsemaxAllocator,
     WeightNorm,
+    NumericalMarkowitzWithShorting
 )
 from .misc import Cov2Corr, CovarianceMatrix, KMeans, MultiplyByConstant
 from .transform import Conv, RNN, Warp, Zoom
@@ -44,4 +45,5 @@ __all__ = [
     "Warp",
     "WeightNorm",
     "Zoom",
+    "NumericalMarkowitzWithShorting"
 ]
