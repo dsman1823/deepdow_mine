@@ -14,7 +14,7 @@ from .layers import (
     WeightNorm,
 )
 
-from deepdowmine.layers.allocate import NumericalMarkowitzWithShorting
+from .layers.allocate import NumericalMarkowitzWithShorting
 
 class BachelierNetWithShorting(torch.nn.Module, Benchmark):
     """Combination of recurrent neural networks and convex optimization.
