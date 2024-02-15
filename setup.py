@@ -20,7 +20,7 @@ INSTALL_REQUIRES = [
 
 setup(
     name="deepdowmine",
-    version=deepdow.__version__,
+    version=deepdowmine.__version__,
     author="forked from Jan Krepl project",
     author_email="sei.dmitry.r@gmail.com",
     description=DESCRIPTION,
