@@ -19,13 +19,13 @@ INSTALL_REQUIRES = [
 ]
 
 setup(
-    name="deepdow",
+    name="deepdow_mine",
     version=deepdow.__version__,
-    author="Jan Krepl",
-    author_email="kjan.official@gmail.com",
+    author="forked from Jan Krepl project",
+    author_email="sei.dmitry.r@gmail.com",
     description=DESCRIPTION,
     long_description=LONG_DESCRIPTION,
-    url="https://github.com/jankrepl/deepdow",
+    url="https://github.com/dsman1823/deepdow_mine",
     packages=find_packages(exclude=["tests"]),
     license="Apache License 2.0",
     install_requires=INSTALL_REQUIRES,
