@@ -101,7 +101,33 @@ class BachelierNetWithShortingUpd(torch.nn.Module, Benchmark):
             n_assets)
         self.gamma_sqrt = torch.nn.Parameter(torch.ones(1), requires_grad=True)
         self.alpha = torch.nn.Parameter(torch.ones(1), requires_grad=True)
+    
+    
+    def get_covmat(self, x):
+        """Calculate and return the covariance matrix for a given input.
+        
+        Parameters
+        ----------
+        x : torch.Tensor
+            Of shape (n_samples, n_channels, lookback, n_assets).
+            
+        Returns
+        -------
+        covmat : torch.Tensor
+            Tensor of shape (n_samples, n_assets, n_assets).
+        """
+        # Normalize
+        x = self.norm_layer(x)
 
+        # Process data through the network up to the point where covariance is calculated
+        x = self.transform_layer(x)
+        x = self.dropout_layer(x)
+        x = self.time_collapse_layer(x)
+        covmat = self.covariance_layer(x)
+        
+        return covmat
+    
+    
     def forward(self, x):
         """Perform forward pass.
 
