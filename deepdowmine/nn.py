@@ -16,6 +16,152 @@ from .layers import (
 
 from .layers.allocate import NumericalMarkowitzWithShorting
 
+
+class BachelierNetWithShortingUpd(torch.nn.Module, Benchmark):
+    """Updated version of BachelierNetWithShorting with 'learnable' cov.
+
+    Parameters
+    ----------
+    n_input_channels : int
+        Number of input channels of the dataset.
+
+    n_assets : int
+        Number of assets in our dataset. Note that this network is shuffle invariant along this dimension.
+
+    hidden_size : int
+        Hidden state size. Alternatively one can see it as number of output channels.
+
+ 
+    shrinkage_strategy : str, {'diagonal', 'identity', 'scaled_identity'}
+        Strategy of estimating the covariance matrix.
+
+    p : float
+        Dropout rate - probability of an element to be zeroed during dropout.
+
+    Attributes
+    ----------
+    norm_layer : torch.nn.Module
+        Instance normalization (per channel).
+
+    transform_layer : deepdow.layers.RNN
+        RNN layer that transforms `(n_samples, n_channels, lookback, n_assets)` to
+        `(n_samples, hidden_size, lookback, n_assets)` where the first (sample) and the last dimension (assets) is
+        shuffle invariant.
+
+    time_collapse_layer : deepdow.layers.AttentionCollapse
+        Attention pooling layer that turns  `(n_samples, hidden_size, lookback, n_assets)` into
+        `(n_samples, hidden_size, n_assets)` by assigning each timestep in the lookback dimension a weight and
+        then performing a weighted average.
+
+    dropout_layer : torch.nn.Module
+        Dropout layer where the probability is controled by the parameter `p`.
+
+    covariance_layer : deepdow.layers.CovarianceMatrix
+        Estimate square root of a covariance metric for the optimization. Turns `(n_samples, hidden_size, n_assets)` to
+        `(n_samples, n_assets, n_assets)`.
+
+    channel_collapse_layer : deepdow.layers.AverageCollapse
+        Averaging layer turning `(n_samples, hidden_size, n_assets)` to `(n_samples, n_assets)` where the output
+        serves as estimate of expected returns in the optimization.
+
+    gamma : torch.nn.Parameter
+        A single learnable parameter that will be used for all samples. It represents the tradoff between risk and
+        return. If equal to zero only expected returns are considered.
+
+    alpha : torch.nn.Parameter
+        A single learnable parameter that will be used for all samples. It represents the regularization strength of
+        portfolio weights. If zero then no effect if high then encourages weights to be closer to zero.
+
+    portfolio_opt_layer : deepdow.layers.NumericalMarkowitz
+        Markowitz optimizer that inputs expected returns, square root of a covariance matrix and a gamma
+
+    """
+
+    def __init__(
+        self,
+        n_input_channels,
+        n_assets,
+        hidden_size=32,
+        shrinkage_strategy="diagonal",
+        p=0.5,
+    ):
+        self._hparams = locals().copy()
+        super().__init__()
+        self.norm_layer = torch.nn.InstanceNorm2d(
+            n_input_channels, affine=True
+        )
+        self.transform_layer = RNN(n_input_channels, hidden_size=hidden_size)
+        self.dropout_layer = torch.nn.Dropout(p=p)
+        self.time_collapse_layer = AttentionCollapse(n_channels=hidden_size)
+        self.covariance_layer = CovarianceMatrix(
+            sqrt=False, shrinkage_strategy=shrinkage_strategy
+        )
+        self.channel_collapse_layer = AverageCollapse(collapse_dim=1)
+        self.portfolio_opt_layer = NumericalMarkowitzWithShorting (
+            n_assets)
+        self.gamma_sqrt = torch.nn.Parameter(torch.ones(1), requires_grad=True)
+        self.alpha = torch.nn.Parameter(torch.ones(1), requires_grad=True)
+
+    def forward(self, x):
+        """Perform forward pass.
+
+        Parameters
+        ----------
+        x : torch.Tensor
+            Of shape (n_samples, n_channels, lookback, n_assets).
+
+        Returns
+        -------
+        weights : torch.Torch
+            Tensor of shape (n_samples, n_assets).
+
+        """
+        # Normalize
+        x = self.norm_layer(x)
+
+        # Covmat
+        rets = x[:, 0, :, :]
+        # The line below is replaced by taking cov from futher NN output
+        # !!! Investigate why did the author used rets of the original data
+        # Looks strange
+        #covmat = self.covariance_layer(rets) 
+
+        # expected returns
+        x = self.transform_layer(x)
+        x = self.dropout_layer(x)
+        x = self.time_collapse_layer(x)
+        covmat = self.covariance_layer(x)
+
+        exp_rets = self.channel_collapse_layer(x)
+        
+
+        # gamma
+        gamma_sqrt_all = (
+            torch.ones(len(x)).to(device=x.device, dtype=x.dtype)
+            * self.gamma_sqrt
+        )
+        alpha_all = (
+            torch.ones(len(x)).to(device=x.device, dtype=x.dtype) * self.alpha
+        )
+
+        # weights
+        weights = self.portfolio_opt_layer(
+            exp_rets, covmat, gamma_sqrt_all, alpha_all
+        )
+
+        return weights
+
+    @property
+    def hparams(self):
+        """Hyperparamters relevant to construction of the model."""
+        return {
+            k: v if isinstance(v, (int, float, str)) else str(v)
+            for k, v in self._hparams.items()
+            if k != "self"
+        }
+
+
+
 class BachelierNetWithShorting(torch.nn.Module, Benchmark):
     """Combination of recurrent neural networks and convex optimization.
 
