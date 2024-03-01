@@ -116,7 +116,7 @@ class LinearNetMine(torch.nn.Module, Benchmark):
         n_samples, _, _, _ = x.shape
 
         # Normalize
-        x = x.view(n_samples, -1)  # flatten
+        x = x.reshape(n_samples, -1)  # flatten # x.view(n_samples, -1)  # flatten
         x = self.norm_layer(x)
         #x = self.dropout_layer(x)
         # x = self.linear0(x)
