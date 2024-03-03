@@ -43,7 +43,7 @@ class NumericalMarkowitzWithShorting(nn.Module):
 
         prob = cp.Problem(
             cp.Maximize(ret - risk - reg),
-            [cp.sum(w) == 1],
+            [cp.sum(w) == 1, w >= -1, w <= 1],
         )
 
         assert prob.is_dpp()
