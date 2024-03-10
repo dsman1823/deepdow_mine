@@ -27,6 +27,105 @@ import torch.nn.init as init
 from .layers.misc import Cov2Corr, CovarianceMatrix, KMeans
 
 
+class UpdDenseNet(torch.nn.Module, Benchmark):
+ 
+    def __init__(self, n_channels, lookback, n_assets, p=0.2):
+        self._hparams = locals().copy()
+        super().__init__()
+
+        self.n_channels = n_channels
+        self.lookback = lookback
+        self.n_assets = n_assets
+        self.cov_n_rows = 50
+        n_features = self.n_channels * self.lookback * self.n_assets
+
+        self.norm_layer = torch.nn.BatchNorm1d(n_features, affine=True)
+        
+   
+        self.linear_for_cov = torch.nn.Linear(n_features, self.n_assets * self.cov_n_rows, bias = True)
+        self.linear_for_cov_dropout = torch.nn.Dropout(p=p)
+        self.covariance_layer = CovarianceMatrix(
+            sqrt=True, shrinkage_strategy=None
+            )
+        
+
+        self.linear = torch.nn.Linear(n_features, n_assets, bias=True)
+        self.linear_dropout = torch.nn.Dropout(p=p)
+
+        #self.initialize_weights()
+
+        self.portfolio_opt_layer = NumericalMarkowitzWithShorting (
+            n_assets, max_weight=1.5)
+        self.gamma_sqrt = torch.nn.Parameter(torch.ones(1), requires_grad=True)
+        self.alpha = torch.nn.Parameter(torch.ones(1), requires_grad=True)
+
+    def initialize_weights(self):
+      init.kaiming_uniform_(self.linear_for_cov.weight, nonlinearity='relu')
+      init.kaiming_uniform_(self.linear.weight, nonlinearity='relu')
+
+
+    def forward(self, x):
+        """Perform forward pass.
+
+        Parameters
+        ----------
+        x : torch.Tensor
+            Of shape (n_samples, n_channels, lookback, n_assets). The last 3 dimensions need to be of the same
+            size as specified in the constructor. They cannot vary.
+
+        Returns
+        -------
+        weights : torch.Torch
+            Tensor of shape (n_samples, n_assets).
+
+        """
+        if x.shape[1:] != (self.n_channels, self.lookback, self.n_assets):
+            raise ValueError("Input x has incorrect shape {}".format(x.shape))
+
+        n_samples, _, _, _ = x.shape
+
+    
+        x = x.reshape(n_samples, -1)  # flatten # x.view(n_samples, -1)  # flatten
+        x = self.norm_layer(x)
+
+      
+        y = self.linear_for_cov(x) # (n_samples, n_assets * self.cov_n_rows)
+        y = F.relu(y)
+        y = y.view(n_samples, self.cov_n_rows, -1)  # Reshaping to (n_samples, self.cov_n_rows, n_assets)
+        y = self.linear_for_cov_dropout(y)
+        covmat = self.covariance_layer(y)
+
+        x = self.linear(x)
+        x = torch.tanh(x)
+        x = self.linear_dropout(x)
+        exp_rets = x # (n_samples, n_assets)
+
+
+        # weights
+        gamma_sqrt_all = (
+            torch.ones(len(x)).to(device=x.device, dtype=x.dtype)
+            * self.gamma_sqrt
+        )
+        alpha_all = (
+            torch.ones(len(x)).to(device=x.device, dtype=x.dtype) * self.alpha
+        )
+
+        # weights
+        weights = self.portfolio_opt_layer(
+            exp_rets, covmat, gamma_sqrt_all, alpha_all
+        )
+
+        return weights
+
+    @property
+    def hparams(self):
+        """Hyperparameters relevant to construction of the model."""
+        return {
+            k: v if isinstance(v, (int, float, str)) else str(v)
+            for k, v in self._hparams.items()
+            if k != "self"
+        }
+
 class UpdNumericalMarkowitzWithShorting(nn.Module):
     """Convex optimization layer stylized into portfolio optimization problem.
 
