@@ -29,7 +29,7 @@ class NumericalMarkowitzWithShorting(nn.Module):
 
     """
 
-    def __init__(self, n_assets):
+    def __init__(self, n_assets, max_weight=2):
         """Construct."""
         super().__init__()
         covmat_sqrt = cp.Parameter((n_assets, n_assets))
@@ -43,7 +43,7 @@ class NumericalMarkowitzWithShorting(nn.Module):
 
         prob = cp.Problem(
             cp.Maximize(ret - risk - reg),
-            [cp.sum(w) == 1, w >= -1, w <= 1],
+            [cp.sum(w) == 1, w >= -max_weight, w <= max_weight],
         )
 
         assert prob.is_dpp()
