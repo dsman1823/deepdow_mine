@@ -27,6 +27,100 @@ import torch.nn.init as init
 from .layers.misc import Cov2Corr, CovarianceMatrix, KMeans
 
 
+
+class MinVarWithShorting(nn.Module):
+    def __init__(self, n_assets):
+        """Construct."""
+        super().__init__()
+        covmat_sqrt = cp.Parameter((n_assets, n_assets))
+
+
+        w = cp.Variable(n_assets)
+        risk = cp.sum_squares(covmat_sqrt @ w)
+
+        prob = cp.Problem(
+            cp.Maximize(-risk),
+            [cp.sum(w) == 1, w >= -1, w <= 1],
+        )
+
+        assert prob.is_dpp()
+
+        self.cvxpylayer = CvxpyLayer(
+            prob, parameters=[covmat_sqrt], variables=[w]
+        )
+
+    def forward(self, covmat_sqrt):
+        n_samples, n_assets = covmat_sqrt.shape[0], covmat_sqrt.shape[1]
+
+        return self.cvxpylayer(covmat_sqrt)[0]
+
+class MinVarDenseNet(torch.nn.Module, Benchmark):
+
+    def __init__(self, n_channels, lookback, n_assets, p=0.5):
+        self._hparams = locals().copy()
+        super().__init__()
+
+        self.n_channels = n_channels
+        self.lookback = lookback
+        self.n_assets = n_assets
+        self.cov_n_rows = 150
+        n_features = self.n_channels * self.lookback * self.n_assets
+
+        self.norm_layer = torch.nn.BatchNorm1d(n_features, affine=True)
+        self.dropout_layer = torch.nn.Dropout(p=p)
+
+        self.linear_for_cov = torch.nn.Linear(n_features, self.n_assets * self.cov_n_rows, bias = True)
+
+        self.covariance_layer = CovarianceMatrix(
+            sqrt=True, shrinkage_strategy=None
+            )
+        self.dropout_layer_cov = torch.nn.Dropout(p=p)
+
+
+        #self.linear1 = torch.nn.Linear(self.cov_n_rows, n_features, bias=True)
+
+        self.portfolio_opt_layer = MinVarWithShorting (
+            n_assets)
+
+    def forward(self, x):
+        if x.shape[1:] != (self.n_channels, self.lookback, self.n_assets):
+            raise ValueError("Input x has incorrect shape {}".format(x.shape))
+
+        n_samples, _, _, _ = x.shape
+
+        # Normalize
+        x = x.reshape(n_samples, -1)  # flatten # x.view(n_samples, -1)  # flatten
+        x = self.norm_layer(x)
+
+      
+        y = self.linear_for_cov(x) # (n_samples, n_assets * self.cov_n_rows)
+        y = F.relu(y)
+
+      
+        y = y.view(n_samples, self.cov_n_rows, -1)  # Reshaping to (n_samples, self.cov_n_rows, n_assets)
+
+      
+        y = self.dropout_layer_cov(y)
+
+      
+        covmat = self.covariance_layer(y)
+
+        weights = self.portfolio_opt_layer(
+            covmat
+        )
+
+        return weights
+
+    @property
+    def hparams(self):
+        """Hyperparameters relevant to construction of the model."""
+        return {
+            k: v if isinstance(v, (int, float, str)) else str(v)
+            for k, v in self._hparams.items()
+            if k != "self"
+        }
+
+
 class UpdUpdLinearNetMine(torch.nn.Module, Benchmark):
     """Network with one layer.
 
