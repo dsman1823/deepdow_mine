@@ -27,6 +27,152 @@ import torch.nn.init as init
 from .layers.misc import Cov2Corr, CovarianceMatrix, KMeans
 
 
+class UpdUpdLinearNetMine(torch.nn.Module, Benchmark):
+    """Network with one layer.
+
+    Parameters
+    ----------
+    n_channels : int
+        Number of channels, needs to be fixed for each input tensor.
+
+    lookback : int
+        Lookback, needs to be fixed for each input tensor.
+
+    n_assets : int
+        Number of assets, needs to be fixed for each input tensor.
+
+    p : float
+        Dropout probability.
+
+    Attributes
+    ----------
+    norm_layer : torch.nn.BatchNorm1d
+        Batch normalization with learnable parameters.
+
+    dropout_layer : torch.nn.Dropout
+        Dropout layer with probability `p`.
+
+    linear : torch.nn.Linear
+        One dense layer with `n_assets` outputs and the flattened input tensor `(n_channels, lookback, n_assets)`.
+
+    temperature : torch.Parameter
+        Learnable parameter for representing the final softmax allocator temperature.
+
+    allocate_layer : SoftmaxAllocator
+        Softmax allocator with a per sample temperature.
+
+    """
+
+    def __init__(self, n_channels, lookback, n_assets, p=0.5):
+        self._hparams = locals().copy()
+        super().__init__()
+
+        self.n_channels = n_channels
+        self.lookback = lookback
+        self.n_assets = n_assets
+        self.cov_n_rows = 150
+        n_features = self.n_channels * self.lookback * self.n_assets
+
+        self.norm_layer = torch.nn.BatchNorm1d(n_features, affine=True)
+        self.dropout_layer = torch.nn.Dropout(p=p)
+
+        self.linear0 = torch.nn.Linear(n_features, 1000, bias=True)
+        self.dropout_layer0 = torch.nn.Dropout(p=p)
+
+        self.linear_for_cov = torch.nn.Linear(n_features, self.n_assets * self.cov_n_rows, bias = True)
+        self.covariance_layer = CovarianceMatrix(
+            sqrt=True, shrinkage_strategy=None
+            )
+        self.dropout_layer_cov = torch.nn.Dropout(p=p)
+
+
+        #self.linear1 = torch.nn.Linear(self.cov_n_rows, n_features, bias=True)
+        self.linear1 = torch.nn.Linear(n_features, n_features, bias=True)
+
+        self.dropout_layer1 = torch.nn.Dropout(p=p)
+        self.linear2 = torch.nn.Linear(n_features, n_features, bias=True)
+        self.dropout_layer2 = torch.nn.Dropout(p=p)
+        self.linear = torch.nn.Linear(n_features, n_assets, bias=True)
+
+        self.initialize_weights()
+
+
+        self.portfolio_opt_layer = UpdNumericalMarkowitzWithShorting (
+            n_assets)
+
+    def initialize_weights(self):
+      init.kaiming_uniform_(self.linear_for_cov.weight, nonlinearity='relu')
+      init.kaiming_uniform_(self.linear.weight, nonlinearity='relu')
+
+
+    def forward(self, x):
+        """Perform forward pass.
+
+        Parameters
+        ----------
+        x : torch.Tensor
+            Of shape (n_samples, n_channels, lookback, n_assets). The last 3 dimensions need to be of the same
+            size as specified in the constructor. They cannot vary.
+
+        Returns
+        -------
+        weights : torch.Torch
+            Tensor of shape (n_samples, n_assets).
+
+        """
+        if x.shape[1:] != (self.n_channels, self.lookback, self.n_assets):
+            raise ValueError("Input x has incorrect shape {}".format(x.shape))
+
+        n_samples, _, _, _ = x.shape
+
+        # Normalize
+        x = x.reshape(n_samples, -1)  # flatten # x.view(n_samples, -1)  # flatten
+        x = self.norm_layer(x)
+        #x = self.dropout_layer(x)
+        # x = self.linear0(x)
+        # x = F.relu(x)
+        #x = torch.nn.Dropout(p=0.5)(x)
+        #x = self.dropout_layer(x)
+        #### Cov computation
+        y = self.linear_for_cov(x) # (n_samples, n_assets * self.cov_n_rows)
+        y = F.relu(y)
+        y = y.view(n_samples, self.cov_n_rows, -1)  # Reshaping to (n_samples, self.cov_n_rows, n_assets)
+        y = self.dropout_layer_cov(y)
+        covmat = self.covariance_layer(y)
+        ####
+
+        # x = self.linear1(x)
+        # x = F.relu(x)
+        # x = self.dropout_layer1(x)
+        # x = self.linear2(x)
+        # x = F.relu(x)
+
+
+        #x = self.dropout_layer2(x)
+
+        x = self.linear(x)
+        x = F.torch.tanh(x)
+        x = self.dropout_layer(x)
+        exp_rets = x#F.relu(x) # (n_samples, n_assets)
+
+
+        # weights
+        weights = self.portfolio_opt_layer(
+            exp_rets, covmat
+        )
+
+        return weights
+
+    @property
+    def hparams(self):
+        """Hyperparameters relevant to construction of the model."""
+        return {
+            k: v if isinstance(v, (int, float, str)) else str(v)
+            for k, v in self._hparams.items()
+            if k != "self"
+        }
+
+
 class UpdDenseNet(torch.nn.Module, Benchmark):
  
     def __init__(self, n_channels, lookback, n_assets, p=0.2):
