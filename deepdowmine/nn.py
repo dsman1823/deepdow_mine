@@ -27,6 +27,54 @@ import torch.nn.init as init
 from .layers.misc import Cov2Corr, CovarianceMatrix, KMeans
 
 
+class RnnNetMinVar(torch.nn.Module, Benchmark):
+    def __init__(
+        self,
+        n_assets,
+        shrinkage_strategy="diagonal",
+        p=0.5,
+    ):
+        self._hparams = locals().copy()
+        super().__init__()
+        self.norm_layer = torch.nn.InstanceNorm2d(
+            n_input_channels, affine=True
+        )
+        self.transform_layer = nn.RNN(
+            input_size = n_assets,
+            hidden_size = n_assets,
+            dropout = p
+            )
+        self.covariance_layer = CovarianceMatrix(
+            sqrt=False, shrinkage_strategy=shrinkage_strategy
+        )
+        self.portfolio_layer = MinVarWithShorting(n_assets)
+
+    def forward(self, x):
+        x = self.norm_layer(x)
+        # x.shape = (n_samples, 1, lookback, n_assets)
+
+        output, hidden = self.transform_layer(
+            x.permute(1, 0, 2, 3)[0] # <-.shape = (n_samples, lookback, n_assets)
+        )
+        #output.shape = (n_samples, lookback, hidden_size)
+
+
+        covmat = self.covariance_layer(output)
+
+        weights = self.portfolio_layer(covmat)
+        return weights
+
+    @property
+    def hparams(self):
+        """Hyperparamters relevant to construction of the model."""
+        return {
+            k: v if isinstance(v, (int, float, str)) else str(v)
+            for k, v in self._hparams.items()
+            if k != "self"
+        }
+
+
+
 class ConvNetMinVar(torch.nn.Module, Benchmark):
     def __init__(self, n_channels, lookback, n_assets, p=0.5):
         self._hparams = locals().copy()
