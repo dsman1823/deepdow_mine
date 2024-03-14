@@ -37,7 +37,7 @@ class RnnNetMinVar(torch.nn.Module, Benchmark):
         self._hparams = locals().copy()
         super().__init__()
         self.norm_layer = torch.nn.InstanceNorm2d(
-            n_input_channels, affine=True
+            1, affine=True
         )
         self.transform_layer = nn.RNN(
             input_size = n_assets,
