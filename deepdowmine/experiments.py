@@ -185,7 +185,7 @@ class Run:
     ):
         # checks
         if not isinstance(
-            train_dataloader, (FlexibleDataLoader, RigidDataLoader, SeqRigidDataLoader)
+            train_dataloader, (FlexibleDataLoader, (RigidDataLoader, SeqRigidDataLoader))
         ):
             raise TypeError(
                 "The train_dataloader needs to be an instance of RigidDataLoader or FlexibleDataLoadeer."
