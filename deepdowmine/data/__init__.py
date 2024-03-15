@@ -22,4 +22,5 @@ __all__ = [
     "Scale",
     "prepare_robust_scaler",
     "prepare_standard_scaler",
+    "SeqRigidDataLoader"
 ]
