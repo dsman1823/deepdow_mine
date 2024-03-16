@@ -11,7 +11,7 @@ import seaborn as sns
 import torch
 
 from .benchmarks import Benchmark
-from .data import RigidDataLoader, SeqRigidDataLoader
+from .data import RigidDataLoader, SeqRigidDataLoader, WeeklyRigidDataLoader
 from .losses import Loss, portfolio_cumulative_returns
 
 
@@ -51,7 +51,7 @@ def generate_metrics_table(
             "The values of benchmarks need to be of type Benchmark"
         )
 
-    if not isinstance(dataloader, (RigidDataLoader, SeqRigidDataLoader)):
+    if not isinstance(dataloader, (RigidDataLoader, SeqRigidDataLoader, WeeklyRigidDataLoader)):
         raise TypeError("The type of dataloader needs to be RigidDataLoader")
 
     if not all(isinstance(metric, Loss) for metric in metrics.values()):
@@ -138,7 +138,7 @@ def generate_cumrets(
             "The values of benchmarks need to be of type Benchmark"
         )
 
-    if not isinstance(dataloader, (RigidDataLoader, SeqRigidDataLoader)):
+    if not isinstance(dataloader, (RigidDataLoader, SeqRigidDataLoader, WeeklyRigidDataLoader)):
         raise TypeError("The type of dataloader needs to be RigidDataLoader")
 
     device = device or torch.device("cpu")
@@ -235,7 +235,7 @@ def generate_weights_table(network, dataloader, device=None, dtype=None):
     if not isinstance(network, Benchmark):
         raise TypeError("The network needs to be an instance of a Benchmark")
 
-    if not isinstance(dataloader, (RigidDataLoader, SeqRigidDataLoader)):
+    if not isinstance(dataloader, (RigidDataLoader, SeqRigidDataLoader, WeeklyRigidDataLoader)):
         raise TypeError(
             "The network needs to be an instance of a RigidDataloader"
         )
