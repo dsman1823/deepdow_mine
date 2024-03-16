@@ -3,6 +3,9 @@ from functools import partial
 
 import torch
 
+from torch.utils.data import Sampler
+
+
 
 class InRAMDataset(torch.utils.data.Dataset):
     """Dataset that lives entirely in RAM.
@@ -502,6 +505,121 @@ class SeqRigidDataLoader(torch.utils.data.DataLoader):
                 asset_ixs=self.asset_ixs,
             ),
             sampler=torch.utils.data.SequentialSampler(self.indices),
+            batch_sampler=None,
+            shuffle=False,
+            drop_last=drop_last,
+            batch_size=batch_size,
+            **kwargs
+        )
+
+    @property
+    def hparams(self):
+        """Generate dictionary of relevant parameters."""
+        return {
+            "lookback": self.lookback,
+            "horizon": self.horizon,
+            "batch_size": self.batch_size,
+        }
+
+
+class WeeklySampler(Sampler):
+    def __init__(self, data_source):
+        self.data_source = data_source
+
+    def __iter__(self):
+        n = len(self.data_source)
+        for j in range(7):  # For each day of the week
+            for i in range(n // 7):  # For each 'week'
+                idx = i * 7 - 1 + j
+                if idx < n:
+                    yield idx
+
+    def __len__(self):
+        return len(self.data_source)
+
+
+
+
+class WeeklyRigidDataLoader(torch.utils.data.DataLoader):
+    """R
+    Parameters
+    ----------
+    dataset : torch.utils.data.Dataset
+        Instance of our dataset. See ``InRAMDataset`` for more details.
+
+    asset_ixs : list or None
+        Represents indices of considered assets (not asset names). If None then considering all assets.
+
+    indices : list or None
+        List of indices to consider (not timestamps) from the provided `dataset` which is inherently ordered. If None
+        then consider all the samples.
+
+    lookback : int or None
+        How many time steps do we look back. If None then taking the maximum lookback from `dataset`.
+
+    horizon : int or None
+        How many time steps we look forward. If None then taking the maximum horizon from `dataset`.
+
+    batch_size : int
+        Number of samples in a batch.
+
+    drop_last : bool
+        If True, then the last batch that does not have `batch_size` samples is dropped.
+
+    """
+
+    def __init__(
+        self,
+        dataset,
+        asset_ixs=None,
+        indices=None,
+        lookback=None,
+        horizon=None,
+        drop_last=False,
+        batch_size=1,
+        **kwargs
+    ):
+
+        if asset_ixs is not None and not (
+            0 <= min(asset_ixs) <= max(asset_ixs) <= dataset.n_assets - 1
+        ):
+            raise ValueError("Invalid asset_ixs.")
+
+        if lookback is not None and not (2 <= lookback <= dataset.lookback):
+            raise ValueError("Invalid lookback_range.")
+
+        if horizon is not None and not (1 <= horizon <= dataset.horizon):
+            raise ValueError("Invalid horizon_range.")
+
+        if indices is not None and not (
+            0 <= min(indices) <= max(indices) <= len(dataset) - 1
+        ):
+            raise ValueError(
+                "The indices our outside of the range of the dataset."
+            )
+
+        self.dataset = dataset
+        self.indices = (
+            indices if indices is not None else list(range(len(dataset)))
+        )
+        self.lookback = lookback if lookback is not None else dataset.lookback
+        self.horizon = horizon if horizon is not None else dataset.horizon
+        self.asset_ixs = (
+            asset_ixs
+            if asset_ixs is not None
+            else list(range(len(dataset.asset_names)))
+        )
+
+        super().__init__(
+            self.dataset,
+            collate_fn=partial(
+                collate_uniform,
+                n_assets_range=None,
+                lookback_range=(self.lookback, self.lookback + 1),
+                horizon_range=(self.horizon, self.horizon + 1),
+                asset_ixs=self.asset_ixs,
+            ),
+            sampler=WeeklySampler(self.indices),
             batch_sampler=None,
             shuffle=False,
             drop_last=drop_last,
