@@ -15,7 +15,7 @@ from .callbacks import (
     ProgressBarCallback,
     ValidationCallback,
 )
-from .data import FlexibleDataLoader, RigidDataLoader, SeqRigidDataLoader
+from .data import FlexibleDataLoader, RigidDataLoader, SeqRigidDataLoader, WeeklyRigidDataLoader
 from .losses import Loss
 
 
@@ -185,7 +185,7 @@ class Run:
     ):
         # checks
         if not isinstance(
-            train_dataloader, (FlexibleDataLoader, RigidDataLoader, SeqRigidDataLoader)
+            train_dataloader, (FlexibleDataLoader, RigidDataLoader, SeqRigidDataLoader, WeeklyRigidDataLoader)
         ):
             raise TypeError(
                 "The train_dataloader needs to be an instance of RigidDataLoader or FlexibleDataLoadeer."
@@ -237,7 +237,7 @@ class Run:
         elif isinstance(val_dataloaders, dict):
             if not all(
                 [
-                    isinstance(x, (RigidDataLoader, SeqRigidDataLoader))
+                    isinstance(x, (RigidDataLoader, SeqRigidDataLoader, WeeklyRigidDataLoader))
                     for x in val_dataloaders.values()
                 ]
             ):
