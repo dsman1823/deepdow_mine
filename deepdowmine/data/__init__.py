@@ -9,7 +9,7 @@ from .augment import (
     prepare_robust_scaler,
     prepare_standard_scaler,
 )
-from .load import FlexibleDataLoader, InRAMDataset, RigidDataLoader, SeqRigidDataLoader
+from .load import FlexibleDataLoader, InRAMDataset, RigidDataLoader, SeqRigidDataLoader, WeeklyRigidDataLoader
 
 __all__ = [
     "Compose",
@@ -22,5 +22,6 @@ __all__ = [
     "Scale",
     "prepare_robust_scaler",
     "prepare_standard_scaler",
-    "SeqRigidDataLoader"
+    "SeqRigidDataLoader",
+    "WeeklyRigidDataLoader"
 ]
