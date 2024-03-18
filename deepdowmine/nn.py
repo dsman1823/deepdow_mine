@@ -26,7 +26,7 @@ import torch.nn as nn
 import torch.nn.init as init
 from .layers.misc import Cov2Corr, CovarianceMatrix, KMeans
 
-class UpdDenseNet(torch.nn.Module, Benchmark):
+class DenseNetFullOpty(torch.nn.Module, Benchmark):
  
     def __init__(self, n_channels, lookback, n_assets, p=0.2):
         self._hparams = locals().copy()
@@ -44,7 +44,7 @@ class UpdDenseNet(torch.nn.Module, Benchmark):
         self.linear_for_cov = torch.nn.Linear(n_features, self.n_assets * self.cov_n_rows, bias = True)
         self.linear_for_cov_dropout = torch.nn.Dropout(p=p)
         self.covariance_layer = CovarianceMatrix(
-            sqrt=True, shrinkage_strategy=None
+            sqrt=True, shrinkage_strategy='diagonal'
             )
         
 
