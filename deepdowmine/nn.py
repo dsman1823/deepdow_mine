@@ -26,7 +26,7 @@ import torch.nn as nn
 import torch.nn.init as init
 from .layers.misc import Cov2Corr, CovarianceMatrix, KMeans
 
-class DenseNetFullOpty(torch.nn.Module, Benchmark):
+class DenseNetFullOpti(torch.nn.Module, Benchmark):
  
     def __init__(self, n_channels, lookback, n_assets, p=0.2):
         self._hparams = locals().copy()
