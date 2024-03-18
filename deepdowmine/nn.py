@@ -42,14 +42,14 @@ class DenseNetFullOpty(torch.nn.Module, Benchmark):
         
    
         self.linear_for_cov = torch.nn.Linear(n_features, self.n_assets * self.cov_n_rows, bias = True)
-        self.linear_for_cov_dropout = torch.nn.Dropout(p=p)
         self.covariance_layer = CovarianceMatrix(
             sqrt=True, shrinkage_strategy='diagonal'
             )
         
 
         self.linear = torch.nn.Linear(n_features, n_assets, bias=True)
-        self.linear_dropout = torch.nn.Dropout(p=p)
+        
+        self.dropout = torch.nn.Dropout(p=p)
 
         self.initialize_weights()
 
@@ -70,17 +70,15 @@ class DenseNetFullOpty(torch.nn.Module, Benchmark):
     
         x = x.reshape(n_samples, -1)  # flatten # x.view(n_samples, -1)  # flatten
         x = self.norm_layer(x)
-
+        x = self.dropout(x)
       
         y = self.linear_for_cov(x) # (n_samples, n_assets * self.cov_n_rows)
         y = F.relu(y)
         y = y.view(n_samples, self.cov_n_rows, -1)  # Reshaping to (n_samples, self.cov_n_rows, n_assets)
-        y = self.linear_for_cov_dropout(y)
         covmat = self.covariance_layer(y)
 
         x = self.linear(x)
         x = torch.tanh(x)
-        x = self.linear_dropout(x)
         exp_rets = x # (n_samples, n_assets)
 
         weights = self.portfolio_opt_layer(
