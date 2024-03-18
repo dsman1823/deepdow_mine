@@ -26,6 +26,70 @@ import torch.nn as nn
 import torch.nn.init as init
 from .layers.misc import Cov2Corr, CovarianceMatrix, KMeans
 
+class UpdDenseNet(torch.nn.Module, Benchmark):
+ 
+    def __init__(self, n_channels, lookback, n_assets, p=0.2):
+        self._hparams = locals().copy()
+        super().__init__()
+
+        self.n_channels = n_channels
+        self.lookback = lookback
+        self.n_assets = n_assets
+        self.cov_n_rows = 50
+        n_features = self.n_channels * self.lookback * self.n_assets
+
+        self.norm_layer = torch.nn.BatchNorm1d(n_features, affine=True)
+        
+   
+        self.linear_for_cov = torch.nn.Linear(n_features, self.n_assets * self.cov_n_rows, bias = True)
+        self.linear_for_cov_dropout = torch.nn.Dropout(p=p)
+        self.covariance_layer = CovarianceMatrix(
+            sqrt=True, shrinkage_strategy=None
+            )
+        
+
+        self.linear = torch.nn.Linear(n_features, n_assets, bias=True)
+        self.linear_dropout = torch.nn.Dropout(p=p)
+
+        self.initialize_weights()
+
+        self.portfolio_opt_layer = UpdNumericalMarkowitzWithShorting(n_assets)
+
+
+    def initialize_weights(self):
+      init.kaiming_uniform_(self.linear_for_cov.weight, nonlinearity='relu')
+      init.kaiming_uniform_(self.linear.weight, nonlinearity='relu')
+
+
+    def forward(self, x):
+        if x.shape[1:] != (self.n_channels, self.lookback, self.n_assets):
+            raise ValueError("Input x has incorrect shape {}".format(x.shape))
+
+        n_samples, _, _, _ = x.shape
+
+    
+        x = x.reshape(n_samples, -1)  # flatten # x.view(n_samples, -1)  # flatten
+        x = self.norm_layer(x)
+
+      
+        y = self.linear_for_cov(x) # (n_samples, n_assets * self.cov_n_rows)
+        y = F.relu(y)
+        y = y.view(n_samples, self.cov_n_rows, -1)  # Reshaping to (n_samples, self.cov_n_rows, n_assets)
+        y = self.linear_for_cov_dropout(y)
+        covmat = self.covariance_layer(y)
+
+        x = self.linear(x)
+        x = torch.tanh(x)
+        x = self.linear_dropout(x)
+        exp_rets = x # (n_samples, n_assets)
+
+        weights = self.portfolio_opt_layer(
+            exp_rets, covmat
+        )
+
+        return weights
+
+
 
 class LstmNetFullOpti(torch.nn.Module, Benchmark):
     def __init__(
