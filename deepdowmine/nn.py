@@ -473,7 +473,7 @@ class MinVarWithShorting(nn.Module):
 
         return self.cvxpylayer(covmat_sqrt)[0]
 
-class MinVarDenseNet(torch.nn.Module, Benchmark):
+class DenseNetMinVar(torch.nn.Module, Benchmark):
 
     def __init__(self, n_channels, lookback, n_assets, p=0.5):
         self._hparams = locals().copy()
@@ -493,11 +493,6 @@ class MinVarDenseNet(torch.nn.Module, Benchmark):
         self.covariance_layer = CovarianceMatrix(
             sqrt=True, shrinkage_strategy=None
             )
-        self.dropout_layer_cov = torch.nn.Dropout(p=p)
-
-
-        #self.linear1 = torch.nn.Linear(self.cov_n_rows, n_features, bias=True)
-
         self.portfolio_opt_layer = MinVarWithShorting (
             n_assets)
 
@@ -510,18 +505,13 @@ class MinVarDenseNet(torch.nn.Module, Benchmark):
         # Normalize
         x = x.reshape(n_samples, -1)  # flatten # x.view(n_samples, -1)  # flatten
         x = self.norm_layer(x)
-
+        x = self.dropout_layer(x)
       
         y = self.linear_for_cov(x) # (n_samples, n_assets * self.cov_n_rows)
         y = F.relu(y)
 
       
         y = y.view(n_samples, self.cov_n_rows, -1)  # Reshaping to (n_samples, self.cov_n_rows, n_assets)
-
-      
-        y = self.dropout_layer_cov(y)
-
-      
         covmat = self.covariance_layer(y)
 
         weights = self.portfolio_opt_layer(
