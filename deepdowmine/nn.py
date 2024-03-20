@@ -386,6 +386,7 @@ class ConvNetFullOpti(torch.nn.Module, Benchmark):
         n_features = self.n_channels * self.lookback * self.n_assets
 
         self.norm_layer = torch.nn.BatchNorm1d(n_features, affine=True)
+        self.dropout_layer = torch.nn.Dropout(p=p)
         self.conv_layer = nn.Conv2d(in_channels=1, out_channels=2, kernel_size=(3, 1), stride=(2, 1), padding=0)
 
         self.covariance_layer = CovarianceMatrix(
@@ -410,6 +411,7 @@ class ConvNetFullOpti(torch.nn.Module, Benchmark):
         # Normalize
         x = x.reshape(n_samples, -1)  # flatten # x.view(n_samples, -1)  # flatten
         x = self.norm_layer(x)
+        x = self.dropout_layer(x)
         x = x.reshape(n_samples, 1, self.lookback, self.n_assets)
        
         conv_res = self.conv_layer(x)
