@@ -9,6 +9,38 @@ import torch.nn as nn
 from .misc import Cov2Corr, CovarianceMatrix, KMeans
 
 
+class ThesisMarkowitz(nn.Module):
+    def __init__(self, n_assets, max_weight=1):
+        super(ThesisMarkowitz, self).__init__()
+        self.n_assets = n_assets
+        self.max_weight = max_weight
+        # Static CVXPY parameters initialized without values
+        self.rets_param = cp.Parameter(n_assets)
+        self.alpha_param = cp.Parameter(nonneg=True)
+        self.covmat_param = cp.Parameter((n_assets, n_assets), PSD=True)
+
+        w = cp.Variable(n_assets)
+        ret = cp.matmul(self.rets_param, w)
+        risk = cp.sqrt(cp.quad_form(w, self.covmat_param))
+        reg = self.alpha_param * cp.norm(w, 2)
+
+        prob = cp.Problem(cp.Maximize(ret - risk - reg),
+                          [cp.sum(w) == 1, w <= self.max_weight, -w <= self.max_weight])
+        self.cvxpylayer = CvxpyLayer(prob, parameters=[self.rets_param, self.covmat_param, self.alpha_param], variables=[w])
+
+    def forward(self, rets, covmat, gamma, alpha):
+        # Ensure alpha is non-negative
+        alpha_abs = torch.abs(alpha)
+        # Reshape gamma for broadcasting if necessary
+        gamma_reshaped = gamma.view(-1, 1, 1).expand_as(covmat)
+        # Adjust covmat by gamma directly in PyTorch to maintain differentiability
+        adjusted_covmat = gamma_reshaped * covmat
+        
+        optimal_weights, = self.cvxpylayer(rets, adjusted_covmat, alpha_abs)
+        return optimal_weights
+
+
+
 
 class NumericalMarkowitzWithShorting(nn.Module):
     """Convex optimization layer stylized into portfolio optimization problem.
