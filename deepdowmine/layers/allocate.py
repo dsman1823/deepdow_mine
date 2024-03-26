@@ -27,15 +27,15 @@ class ThesisMarkowitzFullOpti(nn.Module):
         reg = self.alpha_param * cp.norm(w, 2)
 
         prob = cp.Problem(cp.Maximize(ret  - reg),
-                          [cp.sum(w) == 1])
-        self.cvxpylayer = CvxpyLayer(prob, parameters=[self.rets_param, self.covmat_param, self.alpha_param, self.gamma_param], variables=[w])
+                          [cp.sum(w) == 1, w <= max_weight, -w <= max_weight])
+        self.cvxpylayer = CvxpyLayer(prob, parameters=[self.rets_param, self.alpha_param], variables=[w])#[self.rets_param, self.covmat_param, self.alpha_param, self.gamma_param], variables=[w])
 
     def forward(self, rets, covmat, gamma, alpha):
         # Ensure alpha and gamma are non-negative
         alpha_abs = torch.abs(alpha)
         gamma_abs = torch.abs(gamma)
 
-        optimal_weights, = self.cvxpylayer(rets, covmat, alpha_abs, gamma_abs)
+        optimal_weights, = self.cvxpylayer(rets, alpha_abs)#(rets, covmat, alpha_abs, gamma_abs)
         return optimal_weights
 
 
