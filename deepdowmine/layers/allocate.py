@@ -23,7 +23,7 @@ class ThesisMarkowitzFullOpti(nn.Module):
 
         w = cp.Variable(n_assets)
         ret = cp.matmul(self.rets_param, w)
-        risk = self.gamma_param * cp.sqrt(cp.quad_form(w, self.covmat_param))
+        risk = self.gamma_param * cp.quad_form(w, self.covmat_param)
         reg = self.alpha_param * cp.norm(w, 2)
 
         prob = cp.Problem(cp.Maximize(ret - risk - reg),
