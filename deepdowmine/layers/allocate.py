@@ -12,7 +12,7 @@ from .misc import Cov2Corr, CovarianceMatrix, KMeans
 
 class ThesisMarkowitzFullOpti(nn.Module):
     def __init__(self, n_assets, max_weight=1):
-        super(ThesisMarkowitz, self).__init__()
+        super(ThesisMarkowitzFullOpti, self).__init__()
         self.n_assets = n_assets
         self.max_weight = max_weight
         # Static CVXPY parameters initialized without values
