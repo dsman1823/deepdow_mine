@@ -15,7 +15,7 @@ from .layers import (
     WeightNorm,
 )
 
-from .layers.allocate import NumericalMarkowitzWithShorting, ThesisMarkowitzFullOpti
+from .layers.allocate import NumericalMarkowitzWithShorting, ThesisMarkowitzFullOpti, ThesisMarkowitzMinVar
 
 
 import cvxpy as cp
