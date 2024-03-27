@@ -18,25 +18,29 @@ class ThesisMarkowitzFullOpti(nn.Module):
         # Static CVXPY parameters initialized without values
         self.rets_param = cp.Parameter(n_assets)
         self.alpha_param = cp.Parameter(nonneg=True)
-        self.gamma_param = cp.Parameter(nonneg=True)
         self.covmat_param = cp.Parameter((n_assets, n_assets), PSD=True)
 
         w = cp.Variable(n_assets)
         ret = cp.matmul(self.rets_param, w)
-        risk = self.gamma_param * cp.quad_form(w, self.covmat_param)
+        risk = cp.sum_squares(self.covmat_param  @ w)
         reg = self.alpha_param * cp.norm(w, 2)
 
         prob = cp.Problem(cp.Maximize(ret  - risk - reg),
                           [cp.sum(w) == 1, w <= max_weight, -w <= max_weight])
-        self.cvxpylayer = CvxpyLayer(prob, parameters=[self.rets_param, self.alpha_param], variables=[w])#[self.rets_param, self.covmat_param, self.alpha_param, self.gamma_param], variables=[w])
+        self.cvxpylayer = CvxpyLayer(prob, parameters=[self.rets_param, self.covmat_param, self.alpha_param], variables=[w])
 
     def forward(self, rets, covmat, gamma, alpha):
         # Ensure alpha and gamma are non-negative
         alpha_abs = torch.abs(alpha)
-        gamma_abs = torch.abs(gamma)
+        n_samples, n_assets = rets.shape
+        gamma_ = torch.abs(gamma.repeat((1, n_assets * n_assets)).view(
+            n_samples, n_assets, n_assets
+        ))
+	
 
-        optimal_weights, = self.cvxpylayer(rets, alpha_abs)#(rets, covmat, alpha_abs, gamma_abs)
+        optimal_weights, = self.cvxpylayer(rets, gamma_  * covmat, alpha_abs)
         return optimal_weights
+
 
 
 
