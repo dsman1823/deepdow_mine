@@ -26,7 +26,7 @@ class ThesisMarkowitzFullOpti(nn.Module):
         risk = self.gamma_param * cp.quad_form(w, self.covmat_param)
         reg = self.alpha_param * cp.norm(w, 2)
 
-        prob = cp.Problem(cp.Maximize(ret  - reg),
+        prob = cp.Problem(cp.Maximize(ret  - risk - reg),
                           [cp.sum(w) == 1, w <= max_weight, -w <= max_weight])
         self.cvxpylayer = CvxpyLayer(prob, parameters=[self.rets_param, self.alpha_param], variables=[w])#[self.rets_param, self.covmat_param, self.alpha_param, self.gamma_param], variables=[w])
 
