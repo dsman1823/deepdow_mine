@@ -68,9 +68,9 @@ class DenseNetMinVar2(torch.nn.Module, Benchmark):
       
         y = y.view(n_samples, self.cov_n_rows, -1)  # Reshaping to (n_samples, self.cov_n_rows, n_assets)
         covmat = self.covariance_layer(y)
-
+	#alpha_all = (torch.ones(len(x)).to(device=x.device, dtype=x.dtype) * self.alpha)
         weights = self.portfolio_opt_layer(
-            covmat, self.alpha
+            covmat, (torch.ones(len(x)).to(device=x.device, dtype=x.dtype) * self.alpha)
         )
 
         return weights
