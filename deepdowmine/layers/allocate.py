@@ -9,6 +9,35 @@ import torch.nn as nn
 from .misc import Cov2Corr, CovarianceMatrix, KMeans
 
 
+class ThesisMarkowitzMinVar(nn.Module):
+    def __init__(self, n_assets, max_weight=1):
+        super(ThesisMarkowitzMinVar, self).__init__()
+        self.n_assets = n_assets
+        self.max_weight = max_weight
+        # Static CVXPY parameters initialized without values
+        self.alpha_param = cp.Parameter(nonneg=True)
+        self.covmat_param = cp.Parameter((n_assets, n_assets), PSD=True)
+
+        w = cp.Variable(n_assets)
+        risk = cp.sum_squares(self.covmat_param  @ w)
+        reg = self.alpha_param * cp.norm(w, 2)
+
+        prob = cp.Problem(cp.Maximize(- risk - reg),
+                          [cp.sum(w) == 1, w <= max_weight, -w <= max_weight])
+        self.cvxpylayer = CvxpyLayer(prob, parameters=[self.covmat_param, self.alpha_param], variables=[w])
+
+    def forward(self, covmat, gamma, alpha):
+        # Ensure alpha and gamma are non-negative
+        alpha_abs = torch.abs(alpha)
+        n_samples, n_assets = rets.shape
+        gamma_ = torch.abs(gamma.repeat((1, n_assets * n_assets)).view(
+            n_samples, n_assets, n_assets
+        ))
+	
+
+        optimal_weights, = self.cvxpylayer(gamma_  * covmat, alpha_abs)
+        return optimal_weights
+
 
 class ThesisMarkowitzFullOpti(nn.Module):
     def __init__(self, n_assets, max_weight=1):
