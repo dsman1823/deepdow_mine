@@ -27,6 +27,56 @@ import torch.nn.init as init
 from .layers.misc import Cov2Corr, CovarianceMatrix, KMeans
 
 
+
+class DenseNetMinVar2(torch.nn.Module, Benchmark):
+
+    def __init__(self, n_channels, lookback, n_assets, max_weight, p=0.5):
+        self._hparams = locals().copy()
+        super().__init__()
+
+        self.n_channels = n_channels
+        self.lookback = lookback
+        self.n_assets = n_assets
+        self.cov_n_rows = 150
+        n_features = self.n_channels * self.lookback * self.n_assets
+
+        self.norm_layer = torch.nn.BatchNorm1d(n_features, affine=True)
+        self.dropout_layer = torch.nn.Dropout(p=p)
+
+        self.linear_for_cov = torch.nn.Linear(n_features, self.n_assets * self.cov_n_rows, bias = True)
+
+        self.covariance_layer = CovarianceMatrix(
+            sqrt=True, shrinkage_strategy=None
+            )
+       self.alpha = torch.nn.Parameter(torch.ones(1), requires_grad=True)
+       self.portfolio_opt_layer = ThesisMarkowitzMinVar(n_assets, max_weight=max_weight)
+
+    def forward(self, x):
+        if x.shape[1:] != (self.n_channels, self.lookback, self.n_assets):
+            raise ValueError("Input x has incorrect shape {}".format(x.shape))
+
+        n_samples, _, _, _ = x.shape
+
+        # Normalize
+        x = x.reshape(n_samples, -1)  # flatten # x.view(n_samples, -1)  # flatten
+        x = self.norm_layer(x)
+        x = self.dropout_layer(x)
+      
+        y = self.linear_for_cov(x) # (n_samples, n_assets * self.cov_n_rows)
+        y = F.relu(y)
+
+      
+        y = y.view(n_samples, self.cov_n_rows, -1)  # Reshaping to (n_samples, self.cov_n_rows, n_assets)
+        covmat = self.covariance_layer(y)
+
+        weights = self.portfolio_opt_layer(
+            covmat, self.alpha
+        )
+
+        return weights
+
+
+
 class DenseNetFullOpti2(torch.nn.Module, Benchmark):
  
     def __init__(self, n_channels, lookback, n_assets, max_weight=2, p=0.2):
@@ -57,7 +107,7 @@ class DenseNetFullOpti2(torch.nn.Module, Benchmark):
         self.gamma = torch.nn.Parameter(torch.ones(1), requires_grad=True)
         self.alpha = torch.nn.Parameter(torch.ones(1), requires_grad=True)
 
-        self.portfolio_opt_layer = ThesisMarkowitzFullOpti(n_assets, max_weight=1)
+        self.portfolio_opt_layer = ThesisMarkowitzFullOpti(n_assets, max_weight=max_weight)
 
 
     def initialize_weights(self):
