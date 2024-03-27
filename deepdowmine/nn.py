@@ -48,8 +48,8 @@ class DenseNetMinVar2(torch.nn.Module, Benchmark):
         self.covariance_layer = CovarianceMatrix(
             sqrt=True, shrinkage_strategy=None
             )
-       self.alpha = torch.nn.Parameter(torch.ones(1), requires_grad=True)
-       self.portfolio_opt_layer = ThesisMarkowitzMinVar(n_assets, max_weight=max_weight)
+        self.alpha = torch.nn.Parameter(torch.ones(1), requires_grad=True)
+        self.portfolio_opt_layer = ThesisMarkowitzMinVar(n_assets, max_weight=max_weight)
 
     def forward(self, x):
         if x.shape[1:] != (self.n_channels, self.lookback, self.n_assets):
