@@ -29,8 +29,6 @@ class ThesisMarkowitzMinVar(nn.Module):
     def forward(self, covmat, alpha):
         # Ensure alpha and gamma are non-negative
         alpha_abs = torch.abs(alpha)
-        n_samples, n_assets = rets.shape
-        
         optimal_weights, = self.cvxpylayer(covmat, alpha_abs)
         return optimal_weights
 
