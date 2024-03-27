@@ -26,7 +26,7 @@ class ThesisMarkowitzMinVar(nn.Module):
                           [cp.sum(w) == 1, w <= max_weight, -w <= max_weight])
         self.cvxpylayer = CvxpyLayer(prob, parameters=[self.covmat_param, self.alpha_param], variables=[w])
 
-    def forward(self, covmat, gamma, alpha):
+    def forward(self, covmat, alpha):
         # Ensure alpha and gamma are non-negative
         alpha_abs = torch.abs(alpha)
         n_samples, n_assets = rets.shape
@@ -35,7 +35,7 @@ class ThesisMarkowitzMinVar(nn.Module):
         ))
 	
 
-        optimal_weights, = self.cvxpylayer(gamma_  * covmat, alpha_abs)
+        optimal_weights, = self.cvxpylayer(covmat, alpha_abs)
         return optimal_weights
 
 
