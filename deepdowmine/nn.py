@@ -30,7 +30,7 @@ from .layers.misc import Cov2Corr, CovarianceMatrix, KMeans
 
 class DenseNetMinVar2(torch.nn.Module, Benchmark):
 
-    def __init__(self, n_channels, lookback, n_assets, max_weight, p=0.5):
+    def __init__(self, n_channels, lookback, n_assets, max_weight, p):
         self._hparams = locals().copy()
         super().__init__()
 
@@ -46,9 +46,8 @@ class DenseNetMinVar2(torch.nn.Module, Benchmark):
         self.linear_for_cov = torch.nn.Linear(n_features, self.n_assets * self.cov_n_rows, bias = True)
 
         self.covariance_layer = CovarianceMatrix(
-            sqrt=True, shrinkage_strategy=None
+            sqrt=False, shrinkage_strategy=None
             )
-        self.alpha = torch.nn.Parameter(torch.ones(1), requires_grad=True)
         self.portfolio_opt_layer = ThesisMarkowitzMinVar(n_assets, max_weight=max_weight)
 
     def forward(self, x):
@@ -63,14 +62,14 @@ class DenseNetMinVar2(torch.nn.Module, Benchmark):
         x = self.dropout_layer(x)
       
         y = self.linear_for_cov(x) # (n_samples, n_assets * self.cov_n_rows)
-        y = F.relu(y)
+        y = torch.tanh(y)
 
       
         y = y.view(n_samples, self.cov_n_rows, -1)  # Reshaping to (n_samples, self.cov_n_rows, n_assets)
         covmat = self.covariance_layer(y)
 	#alpha_all = (torch.ones(len(x)).to(device=x.device, dtype=x.dtype) * self.alpha)
         weights = self.portfolio_opt_layer(
-            covmat, (torch.ones(len(x)).to(device=x.device, dtype=x.dtype) * self.alpha)
+            covmat
         )
 
         return weights
