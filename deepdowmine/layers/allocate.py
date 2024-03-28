@@ -9,27 +9,29 @@ import torch.nn as nn
 from .misc import Cov2Corr, CovarianceMatrix, KMeans
 
 
+
 class ThesisMarkowitzMinVar(nn.Module):
-    def __init__(self, n_assets, max_weight=1):
+    def __init__(self, n_assets, max_weight):
         super(ThesisMarkowitzMinVar, self).__init__()
         self.n_assets = n_assets
         self.max_weight = max_weight
-        # Static CVXPY parameters initialized without values
-        self.alpha_param = cp.Parameter(nonneg=True)
+        # Static CVXPY parameter for the covariance matrix, marked as positive semi-definite (PSD)
         self.covmat_param = cp.Parameter((n_assets, n_assets), PSD=True)
 
+        # Portfolio weights variable
         w = cp.Variable(n_assets)
-        risk = cp.sum_squares(self.covmat_param  @ w)
-        reg = self.alpha_param * cp.norm(w, 2)
+        
+        # Define the risk as the portfolio variance
+        risk = cp.sum_squares(self.covmat_param @ w)
+        # Optimization problem to minimize the risk (portfolio variance)
+        # subject to weights summing to 1 and each weight being bounded [0, max_weight]
+        prob = cp.Problem(cp.Minimize(risk),
+                          [cp.sum(w) == 1, w <= max_weight, 0 <= w])
+                          
+        self.cvxpylayer = CvxpyLayer(prob, parameters=[self.covmat_param], variables=[w])
 
-        prob = cp.Problem(cp.Maximize(- risk - reg),
-                          [cp.sum(w) == 1, w <= max_weight, -w <= max_weight])
-        self.cvxpylayer = CvxpyLayer(prob, parameters=[self.covmat_param, self.alpha_param], variables=[w])
-
-    def forward(self, covmat, alpha):
-        # Ensure alpha and gamma are non-negative
-        alpha_abs = torch.abs(alpha)
-        optimal_weights, = self.cvxpylayer(covmat, alpha_abs)
+    def forward(self, covmat):
+        optimal_weights, = self.cvxpylayer(covmat)
         return optimal_weights
 
 
