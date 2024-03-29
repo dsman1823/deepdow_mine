@@ -26,7 +26,7 @@ class ThesisMarkowitzMinVar(nn.Module):
         # Optimization problem to minimize the risk (portfolio variance)
         # subject to weights summing to 1 and each weight being bounded [0, max_weight]
         prob = cp.Problem(cp.Minimize(risk),
-                          [cp.sum(w) == 1, w <= max_weight, 0 <= w])
+                          [cp.sum(w) == 1, w <= max_weight, -w <= max_weight])
                           
         self.cvxpylayer = CvxpyLayer(prob, parameters=[self.covmat_param], variables=[w])
 
