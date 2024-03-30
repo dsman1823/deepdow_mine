@@ -8,30 +8,31 @@ import torch.nn as nn
 
 from .misc import Cov2Corr, CovarianceMatrix, KMeans
 
-
+### Take into account this issue!!! https://github.com/cvxgrp/cvxpylayers/issues/77
 
 class ThesisMarkowitzMinVar(nn.Module):
+ 	
     def __init__(self, n_assets, max_weight):
         super(ThesisMarkowitzMinVar, self).__init__()
         self.n_assets = n_assets
         self.max_weight = max_weight
         # Static CVXPY parameter for the covariance matrix, marked as positive semi-definite (PSD)
-        self.covmat_param = cp.Parameter((n_assets, n_assets), PSD=True)
+        self.covmat_param_sqrt = cp.Parameter((n_assets, n_assets), PSD=True)
 
         # Portfolio weights variable
         w = cp.Variable(n_assets)
         
         # Define the risk as the portfolio variance
-        risk = cp.sum_squares(self.covmat_param @ w)
+        risk = cp.sum_squares(self.covmat_param_sqrt @ w)
         # Optimization problem to minimize the risk (portfolio variance)
         # subject to weights summing to 1 and each weight being bounded [0, max_weight]
         prob = cp.Problem(cp.Minimize(risk),
                           [cp.sum(w) == 1, w <= max_weight, -w <= max_weight])
                           
-        self.cvxpylayer = CvxpyLayer(prob, parameters=[self.covmat_param], variables=[w])
+        self.cvxpylayer = CvxpyLayer(prob, parameters=[self.covmat_param_sqrt], variables=[w])
 
-    def forward(self, covmat):
-        optimal_weights, = self.cvxpylayer(covmat)
+    def forward(self, covmat_sqrt):
+        optimal_weights, = self.cvxpylayer(covmat_sqrt)
         return optimal_weights
 
 
