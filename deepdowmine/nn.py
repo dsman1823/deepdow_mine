@@ -46,7 +46,7 @@ class DenseNetMinVar2(torch.nn.Module, Benchmark):
         self.linear_for_cov = torch.nn.Linear(n_features, self.n_assets * self.cov_n_rows, bias = True)
 
         self.covariance_layer = CovarianceMatrix(
-            sqrt=False, shrinkage_strategy=None
+            sqrt=True, shrinkage_strategy=None
             )
         self.portfolio_opt_layer = ThesisMarkowitzMinVar(n_assets, max_weight=max_weight)
 
