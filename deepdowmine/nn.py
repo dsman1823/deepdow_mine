@@ -31,8 +31,9 @@ class RnnNetMinVar2(torch.nn.Module, Benchmark):
     def __init__(
         self,
         n_assets,
-        shrinkage_strategy="diagonal",
-        p,
+	p,
+        shrinkage_strategy="diagonal"
+       
     ):
         self._hparams = locals().copy()
         super().__init__()
