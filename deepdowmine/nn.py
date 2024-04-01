@@ -32,8 +32,8 @@ class RnnNetMinVar2(torch.nn.Module, Benchmark):
         self,
         n_assets,
 	p,
-        shrinkage_strategy="diagonal"
-       
+        shrinkage_strategy,
+	max_weight
     ):
         self._hparams = locals().copy()
         super().__init__()
@@ -48,7 +48,7 @@ class RnnNetMinVar2(torch.nn.Module, Benchmark):
         self.covariance_layer = CovarianceMatrix(
             sqrt=False, shrinkage_strategy=shrinkage_strategy
         )
-        self.portfolio_layer = ThesisMarkowitzMinVar(n_assets)
+        self.portfolio_layer = ThesisMarkowitzMinVar(n_assets, max_weight=max_weight)
 
     def forward(self, x):
         x = self.norm_layer(x)
