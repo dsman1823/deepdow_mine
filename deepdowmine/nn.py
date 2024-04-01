@@ -46,7 +46,7 @@ class RnnNetMinVar2(torch.nn.Module, Benchmark):
             hidden_size = n_assets
             )
         self.covariance_layer = CovarianceMatrix(
-            sqrt=False, shrinkage_strategy=shrinkage_strategy
+            sqrt=True, shrinkage_strategy=shrinkage_strategy
         )
         self.portfolio_layer = ThesisMarkowitzMinVar(n_assets, max_weight=max_weight)
 
@@ -61,9 +61,9 @@ class RnnNetMinVar2(torch.nn.Module, Benchmark):
         )
         #output.shape = (n_samples, lookback, hidden_size)
 
-        covmat = self.covariance_layer(output)
+        covmat_sqrt = self.covariance_layer(output)
 
-        weights = self.portfolio_layer(covmat)
+        weights = self.portfolio_layer(covmat_sqrt)
         return weights
 
 
