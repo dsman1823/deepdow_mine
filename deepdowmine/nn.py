@@ -27,6 +27,46 @@ import torch.nn.init as init
 from .layers.misc import Cov2Corr, CovarianceMatrix, KMeans
 
 
+class RnnNetMinVar2(torch.nn.Module, Benchmark):
+    def __init__(
+        self,
+        n_assets,
+        shrinkage_strategy="diagonal",
+        p,
+    ):
+        self._hparams = locals().copy()
+        super().__init__()
+        self.norm_layer = torch.nn.InstanceNorm2d(
+            1, affine=True
+        )
+	self.dropout_layer = torch.nn.Dropout(p=p)
+        self.transform_layer = nn.RNN(
+            input_size = n_assets,
+            hidden_size = n_assets
+            )
+        self.covariance_layer = CovarianceMatrix(
+            sqrt=False, shrinkage_strategy=shrinkage_strategy
+        )
+        self.portfolio_layer = ThesisMarkowitzMinVar(n_assets)
+
+    def forward(self, x):
+        x = self.norm_layer(x)
+	x = self.dropout_layer(x)
+    
+        # x.shape = (n_samples, 1, lookback, n_assets)
+
+        output, hidden = self.transform_layer(
+            x.permute(1, 0, 2, 3)[0] # <-.shape = (n_samples, lookback, n_assets)
+        )
+        #output.shape = (n_samples, lookback, hidden_size)
+
+
+        covmat = self.covariance_layer(output)
+
+        weights = self.portfolio_layer(covmat)
+        return weights
+
+
 
 class DenseNetMinVar2(torch.nn.Module, Benchmark):
 
