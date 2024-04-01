@@ -39,7 +39,7 @@ class RnnNetMinVar2(torch.nn.Module, Benchmark):
         self.norm_layer = torch.nn.InstanceNorm2d(
             1, affine=True
         )
-	self.dropout_layer = torch.nn.Dropout(p=p)
+        self.dropout_layer = torch.nn.Dropout(p=p)
         self.transform_layer = nn.RNN(
             input_size = n_assets,
             hidden_size = n_assets
@@ -51,15 +51,14 @@ class RnnNetMinVar2(torch.nn.Module, Benchmark):
 
     def forward(self, x):
         x = self.norm_layer(x)
-	x = self.dropout_layer(x)
+        x = self.dropout_layer(x)
     
         # x.shape = (n_samples, 1, lookback, n_assets)
 
         output, hidden = self.transform_layer(
-            x.permute(1, 0, 2, 3)[0] # <-.shape = (n_samples, lookback, n_assets)
+            x.permute(1, 0, 2, 3)[0]  # <-.shape = (n_samples, lookback, n_assets)
         )
         #output.shape = (n_samples, lookback, hidden_size)
-
 
         covmat = self.covariance_layer(output)
 
