@@ -445,7 +445,7 @@ class RnnNetMinVar(torch.nn.Module, Benchmark):
             dropout = p
             )
         self.covariance_layer = CovarianceMatrix(
-            sqrt=False, shrinkage_strategy=shrinkage_strategy
+            sqrt=True, shrinkage_strategy=shrinkage_strategy
         )
         self.portfolio_layer = MinVarWithShorting(n_assets)
 
