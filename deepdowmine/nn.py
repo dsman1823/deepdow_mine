@@ -27,46 +27,49 @@ import torch.nn.init as init
 from .layers.misc import Cov2Corr, CovarianceMatrix, KMeans
 
 
-class RnnNetMinVar2(torch.nn.Module, Benchmark):
-    def __init__(
-        self,
-        n_assets,
-	p,
-        shrinkage_strategy,
-	max_weight
-    ):
-        self._hparams = locals().copy()
+class RnnNetMinVar2(torch.nn.Module, Benchmark):  
+    def __init__(self, n_assets, p, shrinkage_strategy, max_weight):
         super().__init__()
-        self.norm_layer = torch.nn.InstanceNorm2d(
-            1, affine=True
-        )
+        
+        self.norm_layer = torch.nn.InstanceNorm2d(1, affine=True)
         self.dropout_layer = torch.nn.Dropout(p=p)
-        self.transform_layer = nn.RNN(
-            input_size = n_assets,
-            hidden_size = n_assets
-            )
+        self.transform_layer = torch.nn.LSTM(
+            input_size=n_assets,
+            hidden_size=n_assets,
+            batch_first=True,
+        )
+
+        self.linear_for_cov = torch.nn.Linear(250, 250, bias=True)
+
         self.covariance_layer = CovarianceMatrix(
             sqrt=True, shrinkage_strategy=shrinkage_strategy
         )
         self.portfolio_layer = ThesisMarkowitzMinVar(n_assets, max_weight=max_weight)
+        self.tmp = {}
 
     def forward(self, x):
+        n_samples, _, _, _ = x.shape
+
         x = self.norm_layer(x)
-        x = self.dropout_layer(x)
-    
-        # x.shape = (n_samples, 1, lookback, n_assets)
+        # x = self.dropout_layer(x)  # Commented out if you wish to apply dropout later
 
-        output, hidden = self.transform_layer(
-            x.permute(1, 0, 2, 3)[0]  # <-.shape = (n_samples, lookback, n_assets)
+        # Adjusting for expected LSTM input shape
+        x = x.squeeze(1)  # Removes the channel dimension if it's singular, adjust accordingly
+
+        output, hidden = self.transform_layer(x)
+        self.tmp['output'] = output
+        self.tmp['hidden'] = hidden
+
+        x = self.dropout_layer(output)
+        x = self.linear_for_cov(x.reshape(n_samples, -1))  # Reshape to (n_samples, -1) for Linear layer
+        x = F.relu(x)
+
+        covmat_sqrt = self.covariance_layer(
+            x.reshape(n_samples, 50, 5)
         )
-        #output.shape = (n_samples, lookback, hidden_size)
-
-        covmat_sqrt = self.covariance_layer(output)
 
         weights = self.portfolio_layer(covmat_sqrt)
         return weights
-
-
 
 class DenseNetMinVar2(torch.nn.Module, Benchmark):
 
