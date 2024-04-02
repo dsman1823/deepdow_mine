@@ -33,7 +33,7 @@ class RnnNetMinVar2(torch.nn.Module, Benchmark):
         
         self.norm_layer = torch.nn.InstanceNorm2d(1, affine=True)
         self.dropout_layer = torch.nn.Dropout(p=p)
-        self.transform_layer = torch.nn.LSTM(
+        self.transform_layer = torch.nn.RNN(
             input_size=n_assets,
             hidden_size=n_assets,
             batch_first=True,
