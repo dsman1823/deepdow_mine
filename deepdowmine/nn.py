@@ -122,7 +122,7 @@ class DenseNetMinVar2(torch.nn.Module, Benchmark):
 
 class DenseNetFullOpti2(torch.nn.Module, Benchmark):
  
-    def __init__(self, n_channels, lookback, n_assets, max_weight=2, p=0.2):
+    def __init__(self, n_channels, lookback, n_assets, max_weight, p):
         self._hparams = locals().copy()
         super().__init__()
 
