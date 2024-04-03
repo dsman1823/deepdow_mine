@@ -37,14 +37,13 @@ class ThesisMarkowitzMinVar(nn.Module):
 
 
 class ThesisMarkowitzFullOpti(nn.Module):
-    def __init__(self, n_assets, max_weight=1):
+    def __init__(self, n_assets, max_weight):
         super(ThesisMarkowitzFullOpti, self).__init__()
         self.n_assets = n_assets
         self.max_weight = max_weight
-        # Static CVXPY parameters initialized without values
         self.rets_param = cp.Parameter(n_assets)
         self.alpha_param = cp.Parameter(nonneg=True)
-        self.covmat_param = cp.Parameter((n_assets, n_assets), PSD=True)
+        self.covmat_param = cp.Parameter((n_assets, n_assets), PSD=True) # <--- sqrt of cov matrix
 
         w = cp.Variable(n_assets)
         ret = cp.matmul(self.rets_param, w)
