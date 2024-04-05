@@ -30,7 +30,7 @@ from .layers.misc import Cov2Corr, CovarianceMatrix, KMeans
 class RnnNetFullOpti2(torch.nn.Module, Benchmark):  
     def __init__(self, n_assets, p, shrinkage_strategy, max_weight):
         super().__init__()
-        
+
         self.norm_layer = torch.nn.InstanceNorm2d(1, affine=True)
         self.dropout_layer = torch.nn.Dropout(p=p)
         self.transform_layer = torch.nn.RNN(
@@ -44,8 +44,8 @@ class RnnNetFullOpti2(torch.nn.Module, Benchmark):
         self.gamma = torch.nn.Parameter(torch.ones(1), requires_grad=True)
         self.alpha = torch.nn.Parameter(torch.ones(1), requires_grad=True)
         self.portfolio_layer = ThesisMarkowitzFullOpti(n_assets, max_weight=max_weight)
-	self.tmp = {}
-        
+        self.tmp = {}
+
     def forward(self, x):
         n_samples, _, _, _ = x.shape
         x = self.norm_layer(x)
@@ -55,8 +55,8 @@ class RnnNetFullOpti2(torch.nn.Module, Benchmark):
         x = self.linear_for_cov(x.reshape(n_samples, -1))  # Reshape to (n_samples, -1) for Linear layer
         x = F.relu(x)
         covmat_sqrt = self.covariance_layer(x.reshape(n_samples, 50, 5))
-        exp_rets = hidden # (n_samples, n_assets)
-	tmp['exp'] = exp_rets
+        exp_rets = hidden  # (n_samples, n_assets)
+        self.tmp['exp'] = exp_rets
         gamma_all = (torch.ones(len(exp_rets)).to(device=exp_rets.device, dtype=exp_rets.dtype) * self.gamma)
         alpha_all = (torch.ones(len(exp_rets)).to(device=exp_rets.device, dtype=exp_rets.dtype) * self.alpha)
         weights = self.portfolio_layer(exp_rets, covmat_sqrt, gamma_all, alpha_all)    
