@@ -44,6 +44,7 @@ class RnnNetFullOpti2(torch.nn.Module, Benchmark):
         self.gamma = torch.nn.Parameter(torch.ones(1), requires_grad=True)
         self.alpha = torch.nn.Parameter(torch.ones(1), requires_grad=True)
         self.portfolio_layer = ThesisMarkowitzFullOpti(n_assets, max_weight=max_weight)
+	self.tmp = {}
         
     def forward(self, x):
         n_samples, _, _, _ = x.shape
@@ -55,6 +56,7 @@ class RnnNetFullOpti2(torch.nn.Module, Benchmark):
         x = F.relu(x)
         covmat_sqrt = self.covariance_layer(x.reshape(n_samples, 50, 5))
         exp_rets = hidden # (n_samples, n_assets)
+	tmp['exp'] = exp_rets
         gamma_all = (torch.ones(len(exp_rets)).to(device=exp_rets.device, dtype=exp_rets.dtype) * self.gamma)
         alpha_all = (torch.ones(len(exp_rets)).to(device=exp_rets.device, dtype=exp_rets.dtype) * self.alpha)
         weights = self.portfolio_layer(exp_rets, covmat_sqrt, gamma_all, alpha_all)    
