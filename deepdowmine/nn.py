@@ -57,7 +57,7 @@ class RnnNetFullOpti2(torch.nn.Module, Benchmark):
         exp_rets = hidden # (n_samples, n_assets)
         gamma_all = (torch.ones(len(exp_rets)).to(device=exp_rets.device, dtype=exp_rets.dtype) * self.gamma)
         alpha_all = (torch.ones(len(exp_rets)).to(device=exp_rets.device, dtype=exp_rets.dtype) * self.alpha)
-        weights = self.portfolio_opt_layer(exp_rets, covmat_sqrt, gamma_all, alpha_all)    
+        weights = self.portfolio_layer(exp_rets, covmat_sqrt, gamma_all, alpha_all)    
         return weights
 
 
