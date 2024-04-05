@@ -55,7 +55,7 @@ class RnnNetFullOpti2(torch.nn.Module, Benchmark):
         x = self.linear_for_cov(x.reshape(n_samples, -1))  # Reshape to (n_samples, -1) for Linear layer
         x = F.relu(x)
         covmat_sqrt = self.covariance_layer(x.reshape(n_samples, 50, 5))
-        exp_rets = hidden  # (n_samples, n_assets)
+        exp_rets = hidden[0]  # (n_samples, n_assets)
         self.tmp['exp'] = exp_rets
         gamma_all = (torch.ones(len(exp_rets)).to(device=exp_rets.device, dtype=exp_rets.dtype) * self.gamma)
         alpha_all = (torch.ones(len(exp_rets)).to(device=exp_rets.device, dtype=exp_rets.dtype) * self.alpha)
