@@ -27,6 +27,71 @@ import torch.nn.init as init
 from .layers.misc import Cov2Corr, CovarianceMatrix, KMeans
 
 
+class ConvNetFullOpti2(torch.nn.Module, Benchmark):
+    def __init__(self, n_channels, lookback, n_assets, p):
+        self._hparams = locals().copy()
+        super().__init__()
+
+        self.n_channels = n_channels
+        self.lookback = lookback
+        self.n_assets = n_assets
+        self.cov_n_rows = 50
+        n_features = self.n_channels * self.lookback * self.n_assets
+
+        self.norm_layer = torch.nn.BatchNorm1d(n_features, affine=True)
+        self.conv_layer = nn.Conv2d(in_channels=1, out_channels=2, kernel_size=(3, 1), stride=(2, 1), padding=0)
+
+        self.covariance_layer = CovarianceMatrix(
+            sqrt=True, shrinkage_strategy='diagonal'
+            )
+        self.linear = torch.nn.Linear(120, 5, bias=True)
+        self.linear_cov  = torch.nn.Linear(120, 100, bias=True)
+        self.gamma = torch.nn.Parameter(torch.ones(1), requires_grad=True)
+        self.alpha = torch.nn.Parameter(torch.ones(1), requires_grad=True)
+
+        self.portfolio_layer = ThesisMarkowitzFullOpti(n_assets, max_weight=max_weight)
+
+
+    
+    
+
+    def forward(self, x):
+        if x.shape[1:] != (self.n_channels, self.lookback, self.n_assets):
+            raise ValueError("Input x has incorrect shape {}".format(x.shape))
+
+        n_samples, _, _, _ = x.shape
+
+        # Normalize
+        x = x.reshape(n_samples, -1)  # flatten # x.view(n_samples, -1)  # flatten
+        x = self.norm_layer(x)
+        x = x.reshape(n_samples, 1, self.lookback, self.n_assets)
+       
+        conv_res = self.conv_layer(x)
+        
+        
+            
+        x_exp_rets = conv_res[:,0,:,:].reshape(n_samples, -1)
+        x_cov = conv_res[:,1,:,:].reshape(n_samples, -1)
+        
+       
+        x_cov = F.relu(
+            self.linear_cov(x_cov)
+        ) 
+        x_cov = x_cov.reshape(n_samples, 20, 5)
+        
+        covmat = self.covariance_layer(x_cov)
+        
+        exp_rets = torch.tanh(
+            self.linear(x_exp_rets)
+        )
+
+        gamma_all = (torch.ones(len(exp_rets)).to(device=exp_rets.device, dtype=exp_rets.dtype) * self.gamma)
+        alpha_all = (torch.ones(len(exp_rets)).to(device=exp_rets.device, dtype=exp_rets.dtype) * self.alpha)
+        weights = self.portfolio_layer(exp_rets, covmat_sqrt, gamma_all, alpha_all)    
+             
+        return weights
+
+
 class ConvNetMinVar2(torch.nn.Module, Benchmark):
     def __init__(self, n_channels, lookback, n_assets, p, max_weight):
         self._hparams = locals().copy()
