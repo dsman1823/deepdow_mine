@@ -28,7 +28,7 @@ from .layers.misc import Cov2Corr, CovarianceMatrix, KMeans
 
 
 class ConvNetFullOpti2(torch.nn.Module, Benchmark):
-    def __init__(self, n_channels, lookback, n_assets, p):
+    def __init__(self, n_channels, lookback, n_assets, p, max_weight):
         self._hparams = locals().copy()
         super().__init__()
 
