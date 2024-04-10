@@ -27,6 +27,48 @@ import torch.nn.init as init
 from .layers.misc import Cov2Corr, CovarianceMatrix, KMeans
 
 
+class LstmNetMinVar2(torch.nn.Module, Benchmark):  
+    def __init__(self, n_assets, p, shrinkage_strategy, max_weight):
+        super().__init__()
+        
+        self.norm_layer = torch.nn.InstanceNorm2d(1, affine=True)
+        self.dropout_layer = torch.nn.Dropout(p=p)
+        self.transform_layer = torch.nn.LSTM(
+            input_size=n_assets,
+            hidden_size=n_assets,
+            batch_first=True,
+        )
+
+        self.linear_for_cov = torch.nn.Linear(250, 250, bias=True)
+
+        self.covariance_layer = CovarianceMatrix(
+            sqrt=True, shrinkage_strategy=shrinkage_strategy
+        )
+        self.portfolio_layer = ThesisMarkowitzMinVar(n_assets, max_weight=max_weight)
+   
+    def forward(self, x):
+        n_samples, _, _, _ = x.shape
+
+        x = self.norm_layer(x)
+        x = self.dropout_layer(x)  # Commented out if you wish to apply dropout later
+
+        # Adjusting for expected LSTM input shape
+        x = x.squeeze(1)  # Removes the channel dimension if it's singular, adjust accordingly
+
+        output, hidden = self.transform_layer(x)
+  
+        x = self.dropout_layer(output)
+        x = self.linear_for_cov(x.reshape(n_samples, -1))  # Reshape to (n_samples, -1) for Linear layer
+        x = F.relu(x)
+
+        covmat_sqrt = self.covariance_layer(
+            x.reshape(n_samples, 50, 5)
+        )
+
+        weights = self.portfolio_layer(covmat_sqrt)
+        return weights
+
+
 class ConvNetFullOpti2(torch.nn.Module, Benchmark):
     def __init__(self, n_channels, lookback, n_assets, p, max_weight):
         self._hparams = locals().copy()
