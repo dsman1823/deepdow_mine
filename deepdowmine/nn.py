@@ -121,7 +121,7 @@ class ConvNetFullOpti2(torch.nn.Module, Benchmark):
         ) 
         x_cov = x_cov.reshape(n_samples, 20, 5)
         
-        covmat = self.covariance_layer(x_cov, shrinkage_strategy="diagonal")
+        covmat = self.covariance_layer(x_cov)
         
         exp_rets = torch.tanh(
             self.linear(x_exp_rets)
