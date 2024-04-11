@@ -49,7 +49,7 @@ class LstmNetFullOpti2(torch.nn.Module, Benchmark):
         n_samples, _, _, _ = x.shape
         x = self.norm_layer(x)
         x = x.squeeze(1)  # Removes the channel dimension
-        output, hidden = self.transform_layer(x)
+        output, hidden, cell = self.transform_layer(x)
         x = self.dropout_layer(output)
         x = self.linear_for_cov(x.reshape(n_samples, -1))  # Reshape to (n_samples, -1) for Linear layer
         x = F.relu(x)
