@@ -45,23 +45,17 @@ class RnnNetMinVar3(torch.nn.Module, Benchmark):
             sqrt=True, shrinkage_strategy=shrinkage_strategy
         )
         self.portfolio_layer = ThesisMarkowitzMinVar(n_assets, max_weight=max_weight)
-        self.tmp = {}
-
+      
     def forward(self, x):
         n_samples, _, _, _ = x.shape
 
         x = self.norm_layer(x)
-        # x = self.dropout_layer(x)  # Commented out if you wish to apply dropout later
-
-        # Adjusting for expected LSTM input shape
-        x = x.squeeze(1)  # Removes the channel dimension if it's singular, adjust accordingly
+        x = x.squeeze(1)  # Removes the redundant channel 
 
         output, hidden = self.transform_layer(x)
-        self.tmp['output'] = output
-        self.tmp['hidden'] = hidden
-
+      
         x = self.dropout_layer(output)
-        x = self.linear_for_cov(x.reshape(n_samples, -1))  # Reshape to (n_samples, -1) for Linear layer
+        x = self.linear_for_cov(x.reshape(n_samples, -1)) 
         x = F.relu(x)
 
         covmat_sqrt = self.covariance_layer(
